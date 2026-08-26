@@ -1,6 +1,6 @@
 {
   "name": "@max-null/dsh-achievements",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "SSiD family progress achievements — listens to session/tool events, folds activity into durable counters, unlocks trophies with toasts and an achievements page; the GenUI category merges the genui plugin's own counter data.",
   "license": "MIT",
   "type": "module",
