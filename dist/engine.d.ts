@@ -1,5 +1,9 @@
 import type { Context } from '@deepseek-ai/cordis';
 import { type AchieveState } from './rules.ts';
+/** 有成就关联的插件（探测存在性以置灰未装插件的成就）。 */
+export declare const ASSOCIATED_PLUGINS: readonly string[];
+/** 探测已安装的关联插件：SSID_PROFILE_DIR（壳注入）与常见 profile 目录。 */
+export declare function installedPlugins(): Set<string>;
 export interface EngineSnapshot {
     state: AchieveState;
     distinct: Record<string, number>;

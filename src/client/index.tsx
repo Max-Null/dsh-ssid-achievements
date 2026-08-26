@@ -38,6 +38,8 @@ interface AchievementView {
   category: string
   rarity: string
   unlocked: boolean
+  plugin: string | null
+  pluginInstalled: boolean
   progress: { current: number, target: number }
 }
 
@@ -55,6 +57,9 @@ const STRINGS: Record<string, Record<string, string>> = {
     refresh: '刷新',
     locked: '未解锁',
     unlocked: '已解锁',
+    pluginMissing: '插件未装',
+    growing: '更多组件的成就持续增加中 —— Guardian / Habit / 润色 / 审查等插件将陆续加入。',
+    builtin: '内置',
   },
   en: {
     title: 'Achievements',
@@ -62,7 +67,78 @@ const STRINGS: Record<string, Record<string, string>> = {
     refresh: 'Refresh',
     locked: 'Locked',
     unlocked: 'Unlocked',
+    pluginMissing: 'plugin not installed',
+    growing: 'More component achievements are on the way — Guardian / Habit / Polish / Review and more will join soon.',
+    builtin: 'built-in',
   },
+}
+
+/** 插件短名（卡片标签）。 */
+const PLUGIN_SHORT: Record<string, string> = {
+  '@max-null/dsh-memory': '记忆',
+  'dsh-context-doctor': '审计',
+  '@changfenhuang/dsh-genui': 'GenUI',
+}
+
+function pluginLabel(plugin: string | null): string | null {
+  if (plugin === null) return null
+  return PLUGIN_SHORT[plugin] ?? plugin.split('/').pop() ?? plugin
+}
+
+// ---- 奖杯图标（Lucide trophy，设置页 nav 图标替换——照 dsh-memory 大脑模式） ----
+const TROPHY_PATHS = [
+  'M6 9H4.5a2.5 2.5 0 0 1 0-5H6',
+  'M18 9h1.5a2.5 2.5 0 0 0 0-5H18',
+  'M4 22h16',
+  'M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22',
+  'M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22',
+  'M18 2H6v7a6 6 0 0 0 12 0V2Z',
+]
+const SETTINGS_NAV_MARKER = 'data-dsh-achievements-settings-nav'
+const TROPHY_MASK_SVG = encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>${TROPHY_PATHS.map(d => `<path d='${d}'/>`).join('')}</svg>`,
+)
+      .replace(/'/g, '%27').replace(/\//g, '%2F').replace(/\(/g, '%28').replace(/\)/g, '%29').replace(/#/g, '%23')
+
+const NAV_ICON_CSS = `
+[data-dsh-achievements-settings-nav] > svg:first-child { display: none; }
+[data-dsh-achievements-settings-nav]::before {
+  content: '';
+  flex: none;
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,${TROPHY_MASK_SVG}") center / contain no-repeat;
+  mask: url("data:image/svg+xml,${TROPHY_MASK_SVG}") center / contain no-repeat;
+}
+`
+let navCssInjected = false
+function injectNavCss(): void {
+  if (navCssInjected || typeof document === 'undefined') return
+  navCssInjected = true
+  const style = document.createElement('style')
+  style.setAttribute('data-plugin', '@max-null/dsh-achievements')
+  style.textContent = NAV_ICON_CSS
+  document.head.append(style)
+}
+
+/** 标记设置对话框里本插件的导航行（照 dsh-memory 同款，HMR-safe）。 */
+function registerSettingsNavIcon(label: () => string): () => void {
+  let disposed = false
+  const sync = (): void => {
+    if (disposed) return
+    const currentLabel = label().trim()
+    const buttons = document.querySelectorAll<HTMLButtonElement>('[role="dialog"] nav button')
+    for (const button of buttons) {
+      const matches = currentLabel.length > 0 && button.textContent?.trim() === currentLabel
+      if (matches) button.setAttribute(SETTINGS_NAV_MARKER, '')
+      else button.removeAttribute(SETTINGS_NAV_MARKER)
+    }
+  }
+  sync()
+  const observer = new MutationObserver(sync)
+  observer.observe(document.body, { subtree: true, childList: true, characterData: true })
+  return () => { disposed = true; observer.disconnect() }
 }
 
 const GENUI_LS_KEY = 'dsh.genui.achievements'
@@ -133,15 +209,19 @@ export function AchievementsView(_props: { visible: boolean }): ReturnType<typeo
         className: `achCat${category === c ? ' achCatOn' : ''}`,
         onClick: () => setCategory(c),
       }, c))),
+    createElement('div', { className: 'achGrowing' },
+      createElement('span', { className: 'achGrowingIcon', 'aria-hidden': '' }, '🧩'),
+      createElement('span', null, t.growing)),
     createElement('div', { className: 'achList' },
-      items.map(a => createElement('div', { key: a.id, className: `achRow${a.unlocked ? ' achRowOn' : ''}` },
+      items.map(a => createElement('div', { key: a.id, className: `achRow${a.unlocked ? ' achRowOn' : ''}${a.pluginInstalled ? '' : ' achRowMuted'}` },
         createElement('span', { className: `achIconWrap achIconWrap-${a.rarity}`, 'aria-hidden': '' },
           createElement('span', { className: 'achIcon' }, a.icon)),
         createElement('div', { className: 'achBody' },
           createElement('div', { className: 'achName' },
             a.name,
             createElement('span', { className: `achRarity achRarity-${a.rarity}` },
-              a.rarity === 'legendary' ? '传说' : a.rarity === 'epic' ? '史诗' : a.rarity === 'rare' ? '稀有' : '普通')),
+              a.rarity === 'legendary' ? '传说' : a.rarity === 'epic' ? '史诗' : a.rarity === 'rare' ? '稀有' : '普通'),
+            a.plugin !== null ? createElement('span', { className: 'achPlugin' }, pluginLabel(a.plugin)) : null),
           createElement('div', { className: 'achDesc2' }, a.desc),
           createElement('div', { className: 'achProgRow' },
             createElement('div', { className: 'achProg' },
@@ -150,7 +230,9 @@ export function AchievementsView(_props: { visible: boolean }): ReturnType<typeo
                 style: { width: `${Math.min(100, Math.round(a.progress.current / a.progress.target * 100))}%` },
               })),
             createElement('span', { className: 'achProgNum' }, `${a.progress.current} / ${a.progress.target}`))),
-        createElement('span', { className: `achState${a.unlocked ? ' achStateOn' : ''}` }, a.unlocked ? t.unlocked : t.locked)))),
+        createElement('span', {
+          className: `achState${a.pluginInstalled ? (a.unlocked ? ' achStateOn' : '') : ' achStateOff'}`,
+        }, a.pluginInstalled ? (a.unlocked ? t.unlocked : t.locked) : t.pluginMissing)))),
     note !== '' ? createElement('div', { className: 'achNote' }, note) : null,
   )
 }
@@ -197,6 +279,8 @@ export function apply(ctx: { slots: { inject(name: string, fn: () => unknown): v
     }, () => createElement(AchievementsView, { visible: true }))
   ))
   disposers.push(mountToastLayer())
+  injectNavCss()
+  disposers.push(registerSettingsNavIcon(() => STRINGS[lang()].title))
   return () => { for (const dispose of disposers) dispose() }
 }
 
@@ -236,6 +320,14 @@ const CSS = [
   '.achRarity-rare{background:color-mix(in srgb,#f59e0b 12%,transparent);color:#d97706}',
   '.achRarity-epic{background:color-mix(in srgb,#a78bfa 12%,transparent);color:#7c3aed}',
   '.achRarity-legendary{background:color-mix(in srgb,#f43f5e 12%,transparent);color:#e11d48}',
+  /* 所属插件标签 */
+  '.achPlugin{font-size:10px;line-height:1.6;padding:0 7px;border-radius:999px;background:var(--dsw-alias-fill-hover,rgba(127,127,127,.12));color:var(--dsw-alias-label-secondary,inherit);font-weight:500;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25))}',
+  /* 成就持续增加中提示卡 */
+  '.achGrowing{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px dashed var(--dsw-alias-border-l2,rgba(127,127,127,.35));border-radius:12px;background:var(--dsw-alias-bg-layer-1,transparent);font-size:12px;line-height:1.6;color:var(--dsw-alias-label-secondary,inherit)}',
+  '.achGrowingIcon{flex:none;font-size:15px;line-height:1.4}',
+  /* 插件未装置灰 */
+  '.achRowMuted{opacity:.55;filter:grayscale(.6)}',
+  '.achStateOff{color:var(--dsw-alias-label-tertiary,inherit);background:var(--dsw-alias-fill-hover,rgba(127,127,127,.08))}',
   '.achDesc2{font-size:12px;line-height:1.5;color:var(--dsw-alias-label-secondary,inherit)}',
   '.achProgRow{display:flex;align-items:center;gap:8px;margin-top:2px}',
   '.achProg{flex:1;height:5px;border-radius:999px;background:var(--dsw-alias-border-l1,rgba(127,127,127,.28));overflow:hidden}',

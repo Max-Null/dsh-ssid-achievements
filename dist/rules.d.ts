@@ -21,6 +21,8 @@ export interface AchievementDef {
         counter: string;
         target: number;
     };
+    /** 所属插件（未装对应插件时成就置灰）；null = 引擎内置（工具/行为/隐藏）。 */
+    plugin: string | null;
 }
 /** 计数键（leaf scalars only）。 */
 export declare const KEYS: {
@@ -49,7 +51,7 @@ export interface AchieveState {
 export declare function emptyState(): AchieveState;
 /** 检查新解锁（不看 hidden——hidden 仅影响展示）。 */
 export declare function checkUnlocks(state: AchieveState, unlocked: Record<string, number>): AchievementDef[];
-/** 视图行（client 渲染用）。 */
-export declare function viewOf(achievement: AchievementDef, state: AchieveState, unlocked: Record<string, number>): Record<string, unknown>;
+/** 视图行（client 渲染用；pluginInstalled 由 host 探测注入）。 */
+export declare function viewOf(achievement: AchievementDef, state: AchieveState, unlocked: Record<string, number>, pluginInstalled?: boolean): Record<string, unknown>;
 /** 快照（HTTP / 工具共用）。 */
-export declare function snapshot(state: AchieveState, unlocked: Record<string, number>): Record<string, unknown>;
+export declare function snapshot(state: AchieveState, unlocked: Record<string, number>, installed?: Set<string>): Record<string, unknown>;

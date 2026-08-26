@@ -109,6 +109,29 @@ const CONFIRM_TOOLS = new Set(['memory_confirm'])
 const TEMPLATE_TOOLS = new Set(['prompt_search', 'prompt_get', 'prompt_list', 'prompt_add'])
 const AUDIT_TOOLS = new Set(['context_audit'])
 
+/** 有成就关联的插件（探测存在性以置灰未装插件的成就）。 */
+export const ASSOCIATED_PLUGINS: readonly string[] = [
+  '@max-null/dsh-memory',
+  'dsh-context-doctor',
+  '@changfenhuang/dsh-genui',
+]
+
+/** 探测已安装的关联插件：SSID_PROFILE_DIR（壳注入）与常见 profile 目录。 */
+ export function installedPlugins(): Set<string> {
+  const candidates = [
+    process.env.SSID_PROFILE_DIR,
+    process.env.DSH_HOME ? join(process.env.DSH_HOME, 'profiles', 'ssid') : undefined,
+    join(homedir(), '.dsh', 'profiles', 'ssid'),
+  ].filter((dir): dir is string => typeof dir === 'string' && dir !== '')
+  const found = new Set<string>()
+  for (const dir of candidates) {
+    for (const name of ASSOCIATED_PLUGINS) {
+      if (existsSync(join(dir, 'node_modules', ...name.split('/')))) found.add(name)
+    }
+  }
+  return found
+}
+
 export interface EngineSnapshot {
   state: AchieveState
   distinct: Record<string, number>
@@ -188,8 +211,9 @@ export class AchievementsEngine {
   }
 
   fullSnapshot(): Record<string, unknown> {
+    const installed = installedPlugins()
     return {
-      ...snapshot(this.count, this.store.unlockMap),
+      ...snapshot(this.count, this.store.unlockMap, installed),
       recent: this.snapshot().recent,
       distinct: this.store.distinctCounts,
     }

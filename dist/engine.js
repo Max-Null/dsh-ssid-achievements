@@ -5,7 +5,7 @@
  * 隐私纪律：只读叶级标量（工具名/成功标志/session 事件类型/token 数/
  * 当天时刻），绝不读消息正文/文件内容/错误详情。
  */
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { defineTool } from '@deepseek-ai/dsh-tools';
@@ -101,6 +101,28 @@ const MEMORY_TOOLS = new Set([
 const CONFIRM_TOOLS = new Set(['memory_confirm']);
 const TEMPLATE_TOOLS = new Set(['prompt_search', 'prompt_get', 'prompt_list', 'prompt_add']);
 const AUDIT_TOOLS = new Set(['context_audit']);
+/** 有成就关联的插件（探测存在性以置灰未装插件的成就）。 */
+export const ASSOCIATED_PLUGINS = [
+    '@max-null/dsh-memory',
+    'dsh-context-doctor',
+    '@changfenhuang/dsh-genui',
+];
+/** 探测已安装的关联插件：SSID_PROFILE_DIR（壳注入）与常见 profile 目录。 */
+export function installedPlugins() {
+    const candidates = [
+        process.env.SSID_PROFILE_DIR,
+        process.env.DSH_HOME ? join(process.env.DSH_HOME, 'profiles', 'ssid') : undefined,
+        join(homedir(), '.dsh', 'profiles', 'ssid'),
+    ].filter((dir) => typeof dir === 'string' && dir !== '');
+    const found = new Set();
+    for (const dir of candidates) {
+        for (const name of ASSOCIATED_PLUGINS) {
+            if (existsSync(join(dir, 'node_modules', ...name.split('/'))))
+                found.add(name);
+        }
+    }
+    return found;
+}
 /** 引擎（带事件源的宿主注入）。 */
 export class AchievementsEngine {
     store = new StateStore();
@@ -169,8 +191,9 @@ export class AchievementsEngine {
         return queue;
     }
     fullSnapshot() {
+        const installed = installedPlugins();
         return {
-            ...snapshot(this.count, this.store.unlockMap),
+            ...snapshot(this.count, this.store.unlockMap, installed),
             recent: this.snapshot().recent,
             distinct: this.store.distinctCounts,
         };

@@ -134,4 +134,19 @@ describe('快照', () => {
     expect(snap.total).toBe(ACHIEVEMENTS.length)
     expect(snap.unlocked).toBe(1)
   })
+
+  it('插件安装状态注入：关联插件未装 → pluginInstalled=false 且置灰；内置成就恒可用', () => {
+    const state = emptyState()
+    // 空 installed：记忆/审计/GenUI 关联成就置灰
+    const emptySnap = snapshot(state, {}, new Set())
+    const memoryRow = (emptySnap.achievements as Array<Record<string, unknown>>).find(a => a.id === 'memory-first-save')!
+    expect(memoryRow.plugin).toBe('@max-null/dsh-memory')
+    expect(memoryRow.pluginInstalled).toBe(false)
+    const builtinRow = (emptySnap.achievements as Array<Record<string, unknown>>).find(a => a.id === 'first-tool')!
+    expect(builtinRow.pluginInstalled).toBe(true)
+    // 装有 dsh-memory 时恢复可用
+    const installedSnap = snapshot(state, {}, new Set(['@max-null/dsh-memory']))
+    const memoryInstalled = (installedSnap.achievements as Array<Record<string, unknown>>).find(a => a.id === 'memory-first-save')!
+    expect(memoryInstalled.pluginInstalled).toBe(true)
+  })
 })

@@ -52,16 +52,84 @@ var STRINGS = {
     desc: "SSiD \u5168\u5BB6\u6876\u8FDB\u5EA6\uFF1A\u5DE5\u5177/\u8BB0\u5FC6/\u5BA1\u8BA1/GenUI \u4F7F\u7528\u6210\u5C31\uFF0C\u89E3\u9501\u53EF\u9886 toast\u3002",
     refresh: "\u5237\u65B0",
     locked: "\u672A\u89E3\u9501",
-    unlocked: "\u5DF2\u89E3\u9501"
+    unlocked: "\u5DF2\u89E3\u9501",
+    pluginMissing: "\u63D2\u4EF6\u672A\u88C5",
+    growing: "\u66F4\u591A\u7EC4\u4EF6\u7684\u6210\u5C31\u6301\u7EED\u589E\u52A0\u4E2D \u2014\u2014 Guardian / Habit / \u6DA6\u8272 / \u5BA1\u67E5\u7B49\u63D2\u4EF6\u5C06\u9646\u7EED\u52A0\u5165\u3002",
+    builtin: "\u5185\u7F6E"
   },
   en: {
     title: "Achievements",
     desc: "SSiD family progress: tool/memory/audit/GenUI usage trophies with unlock toasts.",
     refresh: "Refresh",
     locked: "Locked",
-    unlocked: "Unlocked"
+    unlocked: "Unlocked",
+    pluginMissing: "plugin not installed",
+    growing: "More component achievements are on the way \u2014 Guardian / Habit / Polish / Review and more will join soon.",
+    builtin: "built-in"
   }
 };
+var PLUGIN_SHORT = {
+  "@max-null/dsh-memory": "\u8BB0\u5FC6",
+  "dsh-context-doctor": "\u5BA1\u8BA1",
+  "@changfenhuang/dsh-genui": "GenUI"
+};
+function pluginLabel(plugin) {
+  if (plugin === null) return null;
+  return PLUGIN_SHORT[plugin] ?? plugin.split("/").pop() ?? plugin;
+}
+var TROPHY_PATHS = [
+  "M6 9H4.5a2.5 2.5 0 0 1 0-5H6",
+  "M18 9h1.5a2.5 2.5 0 0 0 0-5H18",
+  "M4 22h16",
+  "M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22",
+  "M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22",
+  "M18 2H6v7a6 6 0 0 0 12 0V2Z"
+];
+var SETTINGS_NAV_MARKER = "data-dsh-achievements-settings-nav";
+var TROPHY_MASK_SVG = encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>${TROPHY_PATHS.map((d) => `<path d='${d}'/>`).join("")}</svg>`
+).replace(/'/g, "%27").replace(/\//g, "%2F").replace(/\(/g, "%28").replace(/\)/g, "%29").replace(/#/g, "%23");
+var NAV_ICON_CSS = `
+[data-dsh-achievements-settings-nav] > svg:first-child { display: none; }
+[data-dsh-achievements-settings-nav]::before {
+  content: '';
+  flex: none;
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,${TROPHY_MASK_SVG}") center / contain no-repeat;
+  mask: url("data:image/svg+xml,${TROPHY_MASK_SVG}") center / contain no-repeat;
+}
+`;
+var navCssInjected = false;
+function injectNavCss() {
+  if (navCssInjected || typeof document === "undefined") return;
+  navCssInjected = true;
+  const style = document.createElement("style");
+  style.setAttribute("data-plugin", "@max-null/dsh-achievements");
+  style.textContent = NAV_ICON_CSS;
+  document.head.append(style);
+}
+function registerSettingsNavIcon(label) {
+  let disposed = false;
+  const sync = () => {
+    if (disposed) return;
+    const currentLabel = label().trim();
+    const buttons = document.querySelectorAll('[role="dialog"] nav button');
+    for (const button of buttons) {
+      const matches = currentLabel.length > 0 && button.textContent?.trim() === currentLabel;
+      if (matches) button.setAttribute(SETTINGS_NAV_MARKER, "");
+      else button.removeAttribute(SETTINGS_NAV_MARKER);
+    }
+  };
+  sync();
+  const observer = new MutationObserver(sync);
+  observer.observe(document.body, { subtree: true, childList: true, characterData: true });
+  return () => {
+    disposed = true;
+    observer.disconnect();
+  };
+}
 var GENUI_LS_KEY = "dsh.genui.achievements";
 function readGenUI() {
   try {
@@ -137,10 +205,16 @@ function AchievementsView(_props) {
     ),
     (0, import_react.createElement)(
       "div",
+      { className: "achGrowing" },
+      (0, import_react.createElement)("span", { className: "achGrowingIcon", "aria-hidden": "" }, "\u{1F9E9}"),
+      (0, import_react.createElement)("span", null, t.growing)
+    ),
+    (0, import_react.createElement)(
+      "div",
       { className: "achList" },
       items.map((a) => (0, import_react.createElement)(
         "div",
-        { key: a.id, className: `achRow${a.unlocked ? " achRowOn" : ""}` },
+        { key: a.id, className: `achRow${a.unlocked ? " achRowOn" : ""}${a.pluginInstalled ? "" : " achRowMuted"}` },
         (0, import_react.createElement)(
           "span",
           { className: `achIconWrap achIconWrap-${a.rarity}`, "aria-hidden": "" },
@@ -157,7 +231,8 @@ function AchievementsView(_props) {
               "span",
               { className: `achRarity achRarity-${a.rarity}` },
               a.rarity === "legendary" ? "\u4F20\u8BF4" : a.rarity === "epic" ? "\u53F2\u8BD7" : a.rarity === "rare" ? "\u7A00\u6709" : "\u666E\u901A"
-            )
+            ),
+            a.plugin !== null ? (0, import_react.createElement)("span", { className: "achPlugin" }, pluginLabel(a.plugin)) : null
           ),
           (0, import_react.createElement)("div", { className: "achDesc2" }, a.desc),
           (0, import_react.createElement)(
@@ -174,7 +249,9 @@ function AchievementsView(_props) {
             (0, import_react.createElement)("span", { className: "achProgNum" }, `${a.progress.current} / ${a.progress.target}`)
           )
         ),
-        (0, import_react.createElement)("span", { className: `achState${a.unlocked ? " achStateOn" : ""}` }, a.unlocked ? t.unlocked : t.locked)
+        (0, import_react.createElement)("span", {
+          className: `achState${a.pluginInstalled ? a.unlocked ? " achStateOn" : "" : " achStateOff"}`
+        }, a.pluginInstalled ? a.unlocked ? t.unlocked : t.locked : t.pluginMissing)
       ))
     ),
     note !== "" ? (0, import_react.createElement)("div", { className: "achNote" }, note) : null
@@ -219,6 +296,8 @@ function apply(ctx) {
     label: () => STRINGS[lang()].title
   }, () => (0, import_react.createElement)(AchievementsView, { visible: true })));
   disposers.push(mountToastLayer());
+  injectNavCss();
+  disposers.push(registerSettingsNavIcon(() => STRINGS[lang()].title));
   return () => {
     for (const dispose of disposers) dispose();
   };
@@ -258,6 +337,14 @@ var CSS = [
   ".achRarity-rare{background:color-mix(in srgb,#f59e0b 12%,transparent);color:#d97706}",
   ".achRarity-epic{background:color-mix(in srgb,#a78bfa 12%,transparent);color:#7c3aed}",
   ".achRarity-legendary{background:color-mix(in srgb,#f43f5e 12%,transparent);color:#e11d48}",
+  /* 所属插件标签 */
+  ".achPlugin{font-size:10px;line-height:1.6;padding:0 7px;border-radius:999px;background:var(--dsw-alias-fill-hover,rgba(127,127,127,.12));color:var(--dsw-alias-label-secondary,inherit);font-weight:500;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25))}",
+  /* 成就持续增加中提示卡 */
+  ".achGrowing{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px dashed var(--dsw-alias-border-l2,rgba(127,127,127,.35));border-radius:12px;background:var(--dsw-alias-bg-layer-1,transparent);font-size:12px;line-height:1.6;color:var(--dsw-alias-label-secondary,inherit)}",
+  ".achGrowingIcon{flex:none;font-size:15px;line-height:1.4}",
+  /* 插件未装置灰 */
+  ".achRowMuted{opacity:.55;filter:grayscale(.6)}",
+  ".achStateOff{color:var(--dsw-alias-label-tertiary,inherit);background:var(--dsw-alias-fill-hover,rgba(127,127,127,.08))}",
   ".achDesc2{font-size:12px;line-height:1.5;color:var(--dsw-alias-label-secondary,inherit)}",
   ".achProgRow{display:flex;align-items:center;gap:8px;margin-top:2px}",
   ".achProg{flex:1;height:5px;border-radius:999px;background:var(--dsw-alias-border-l1,rgba(127,127,127,.28));overflow:hidden}",
