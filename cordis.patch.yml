@@ -1,0 +1,6 @@
+# dsh-achievements bundle patch: one insert over the profile root.
+# The engine observes session/tool events already provided by the host
+# (dsh-base); this adds only the achievements plugin.
+- insert:
+    - id: achievements
+      name: '@max-null/dsh-achievements'
