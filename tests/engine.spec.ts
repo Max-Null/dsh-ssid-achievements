@@ -27,7 +27,7 @@ describe('规则', () => {
     const ids = new Set(ACHIEVEMENTS.map(a => a.id))
     expect(ids.size).toBe(ACHIEVEMENTS.length)
     const categories = new Set(ACHIEVEMENTS.map(a => a.category))
-    for (const c of ['启程', '记忆', '审计', 'GenUI', '工具', '行为', '隐藏']) {
+    for (const c of ['启程', '记忆', '审计', 'GenUI', '收藏', '工具', '行为', '隐藏']) {
       expect(categories.has(c), `缺类别 ${c}`).toBe(true)
     }
   })
@@ -148,5 +148,29 @@ describe('快照', () => {
     const installedSnap = snapshot(state, {}, new Set(['@max-null/dsh-memory']))
     const memoryInstalled = (installedSnap.achievements as Array<Record<string, unknown>>).find(a => a.id === 'memory-first-save')!
     expect(memoryInstalled.pluginInstalled).toBe(true)
+  })
+
+  it('收藏成就：dsh-chat-rail 类别/阈值/插件归属', () => {
+    const favs = ACHIEVEMENTS.filter(a => a.category === '收藏')
+    expect(favs.length).toBeGreaterThanOrEqual(4)
+    const first = favs.find(a => a.id === 'fav-first')!
+    expect(first.threshold.target).toBe(1)
+    expect(first.plugin).toBe('@max-null/dsh-chat-rail')
+    expect(favs.find(a => a.id === 'fav-100')!.threshold.target).toBe(100)
+  })
+
+  it('mergeChatRail：setMax 幂等（绝对值重复上报不虚增）+ 解锁', () => {
+    withHome(() => {
+      const engine = new AchievementsEngine('test-profile')
+      engine.mergeChatRail(3)
+      engine.mergeChatRail(3)
+      engine.mergeChatRail(5)
+      engine.flush() // 解锁检查在 flush
+      expect(engine.count['chatRailFavorites']).toBe(5)
+      const snap = engine.fullSnapshot()
+      const favFirst = (snap.achievements as Array<Record<string, unknown>>).find(a => a.id === 'fav-first')!
+      expect(favFirst.progress).toEqual({ current: 1, target: 1 }) // view 进度截断到 target
+      expect(favFirst.unlocked).toBe(true)
+    })
   })
 })

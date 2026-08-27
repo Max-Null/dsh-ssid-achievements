@@ -78,11 +78,29 @@ const PLUGIN_SHORT: Record<string, string> = {
   '@max-null/dsh-memory': '记忆',
   'dsh-context-doctor': '审计',
   '@changfenhuang/dsh-genui': 'GenUI',
+  '@max-null/dsh-chat-rail': '收藏',
 }
 
 function pluginLabel(plugin: string | null): string | null {
   if (plugin === null) return null
   return PLUGIN_SHORT[plugin] ?? plugin.split('/').pop() ?? plugin
+}
+
+/** chat-rail 收藏总数（Record<sessionId, messageId[]> —— 只读叶级标量，不读内容）。 */
+function readChatRail(): number {
+  try {
+    const raw = localStorage.getItem(CHAT_RAIL_LS_KEY)
+    if (raw === null) return 0
+    const parsed = JSON.parse(raw) as Record<string, unknown> | null
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return 0
+    let total = 0
+    for (const value of Object.values(parsed)) {
+      if (Array.isArray(value)) total += value.filter((id): id is string => typeof id === 'string' && id !== '').length
+    }
+    return total
+  } catch {
+    return 0
+  }
 }
 
 // ---- 奖杯图标（Lucide trophy，设置页 nav 图标替换——照 dsh-memory 大脑模式） ----
@@ -142,6 +160,7 @@ function registerSettingsNavIcon(label: () => string): () => void {
 }
 
 const GENUI_LS_KEY = 'dsh.genui.achievements'
+const CHAT_RAIL_LS_KEY = '@max-null/dsh-chat-rail:favorites'
 
 function readGenUI(): { unlockedCount: number, fences: number } {
   try {
@@ -169,9 +188,10 @@ export function AchievementsView(_props: { visible: boolean }): ReturnType<typeo
   const t = STRINGS[lang()]
 
   const reload = useCallback(async (): Promise<void> => {
-    // GenUI 融合：先上报 genui 计数，再取全景快照
+    // 融合：先上报外部插件计数（genui / chat-rail 收藏——绝对值，host setMax 防虚增），再取全景快照
     const genui = readGenUI()
     await api('genui-merge', genui)
+    await api('chat-rail-merge', { total: readChatRail() })
     const data = await api<Snapshot>('list')
     if (data !== null) setSnapshot(data)
   }, [])

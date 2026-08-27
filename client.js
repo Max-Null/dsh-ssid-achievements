@@ -71,11 +71,27 @@ var STRINGS = {
 var PLUGIN_SHORT = {
   "@max-null/dsh-memory": "\u8BB0\u5FC6",
   "dsh-context-doctor": "\u5BA1\u8BA1",
-  "@changfenhuang/dsh-genui": "GenUI"
+  "@changfenhuang/dsh-genui": "GenUI",
+  "@max-null/dsh-chat-rail": "\u6536\u85CF"
 };
 function pluginLabel(plugin) {
   if (plugin === null) return null;
   return PLUGIN_SHORT[plugin] ?? plugin.split("/").pop() ?? plugin;
+}
+function readChatRail() {
+  try {
+    const raw = localStorage.getItem(CHAT_RAIL_LS_KEY);
+    if (raw === null) return 0;
+    const parsed = JSON.parse(raw);
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return 0;
+    let total = 0;
+    for (const value of Object.values(parsed)) {
+      if (Array.isArray(value)) total += value.filter((id) => typeof id === "string" && id !== "").length;
+    }
+    return total;
+  } catch {
+    return 0;
+  }
 }
 var TROPHY_PATHS = [
   "M6 9H4.5a2.5 2.5 0 0 1 0-5H6",
@@ -131,6 +147,7 @@ function registerSettingsNavIcon(label) {
   };
 }
 var GENUI_LS_KEY = "dsh.genui.achievements";
+var CHAT_RAIL_LS_KEY = "@max-null/dsh-chat-rail:favorites";
 function readGenUI() {
   try {
     const raw = localStorage.getItem(GENUI_LS_KEY);
@@ -155,6 +172,7 @@ function AchievementsView(_props) {
   const reload = (0, import_react.useCallback)(async () => {
     const genui = readGenUI();
     await api("genui-merge", genui);
+    await api("chat-rail-merge", { total: readChatRail() });
     const data = await api("list");
     if (data !== null) setSnapshot(data);
   }, []);

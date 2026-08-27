@@ -32,6 +32,8 @@ export declare class AchievementsEngine {
     recordTokens(amount: number): void;
     /** GenUI 计数合并（client 写入；host 侧直接写计数键）。 */
     mergeGenUI(unlockedCount: number, fences: number): void;
+    /** chat-rail 收藏绝对值（localStorage 上报；setMax 防重复虚增）。 */
+    mergeChatRail(total: number): void;
     /** 检查解锁；返回新解锁（进队列 + 持久化；计数每次落盘）。 */
     flush(): void;
     snapshot(): EngineSnapshot;

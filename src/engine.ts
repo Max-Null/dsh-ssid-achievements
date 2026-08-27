@@ -83,6 +83,13 @@ class StateStore {
     this.counters[key] = (this.counters[key] ?? 0) + by
   }
 
+  /** merge 上报语义：取 max（外部系统计数为绝对值，重复上报不虚增）。 */
+  setMax(key: string, value: number): void {
+    if (value <= 0) return
+    if ((this.counters[key] ?? 0) >= value) return
+    this.counters[key] = value
+  }
+
   addDistinct(key: string, value: string): void {
     let set = this.distinct[key]
     if (set === undefined) { set = new Set(); this.distinct[key] = set }
@@ -114,6 +121,7 @@ export const ASSOCIATED_PLUGINS: readonly string[] = [
   '@max-null/dsh-memory',
   'dsh-context-doctor',
   '@changfenhuang/dsh-genui',
+  '@max-null/dsh-chat-rail',
 ]
 
 /** 探测已安装的关联插件：SSID_PROFILE_DIR（壳注入）与常见 profile 目录。 */
@@ -179,8 +187,13 @@ export class AchievementsEngine {
 
   /** GenUI 计数合并（client 写入；host 侧直接写计数键）。 */
   mergeGenUI(unlockedCount: number, fences: number): void {
-    this.store.bump('genuiUnlocked', Math.max(0, unlockedCount))
-    this.store.bump('genuiFences', Math.max(0, fences))
+    this.store.setMax('genuiUnlocked', Math.max(0, unlockedCount))
+    this.store.setMax('genuiFences', Math.max(0, fences))
+  }
+
+  /** chat-rail 收藏绝对值（localStorage 上报；setMax 防重复虚增）。 */
+  mergeChatRail(total: number): void {
+    this.store.setMax('chatRailFavorites', Math.max(0, total))
   }
 
   /** 检查解锁；返回新解锁（进队列 + 持久化；计数每次落盘）。 */
@@ -321,6 +334,15 @@ export function registerRoutes(ctx: Context, engine: AchievementsEngine): void {
               typeof body.unlockedCount === 'number' ? body.unlockedCount : 0,
               typeof body.fences === 'number' ? body.fences : 0,
             )
+            engine.flush()
+            writeJson(res, 200, { ok: true, value: engine.fullSnapshot() })
+            return
+          }
+          case 'chat-rail-merge': {
+            const body = (await readJsonBody(req as AsyncIterable<string | Uint8Array>)) as {
+              total?: unknown
+            }
+            engine.mergeChatRail(typeof body.total === 'number' ? body.total : 0)
             engine.flush()
             writeJson(res, 200, { ok: true, value: engine.fullSnapshot() })
             return

@@ -6,7 +6,7 @@
  * 文件内容或错误详情。GenUI 类别由 client 侧读取 genui 插件的计数
  * localStorage 合并（见 client/index.tsx）。
  */
-export type Category = '启程' | '记忆' | '审计' | 'GenUI' | '工具' | '行为' | '隐藏';
+export type Category = '启程' | '记忆' | '审计' | 'GenUI' | '收藏' | '工具' | '行为' | '隐藏';
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
 export interface AchievementDef {
     id: string;
@@ -37,6 +37,7 @@ export declare const KEYS: {
     readonly audits: "audits";
     readonly genuiUnlocked: "genuiUnlocked";
     readonly genuiFences: "genuiFences";
+    readonly chatRailFavorites: "chatRailFavorites";
     readonly marathonTurns: "marathonTurns";
     readonly midnightTurns: "midnightTurns";
     readonly selfQueries: "selfQueries";

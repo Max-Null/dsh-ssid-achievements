@@ -19,6 +19,7 @@ export const KEYS = {
     audits: 'audits',
     genuiUnlocked: 'genuiUnlocked',
     genuiFences: 'genuiFences',
+    chatRailFavorites: 'chatRailFavorites',
     marathonTurns: 'marathonTurns',
     midnightTurns: 'midnightTurns',
     selfQueries: 'selfQueries',
@@ -54,6 +55,15 @@ export const ACHIEVEMENTS = [
         plugin: '@changfenhuang/dsh-genui' },
     { id: 'genui-25', name: '界面编织者', desc: 'GenUI 渲染过 25 个界面。', icon: '🧶', category: 'GenUI', rarity: 'epic', threshold: { counter: KEYS.genuiFences, target: 25 },
         plugin: '@changfenhuang/dsh-genui' },
+    // ── 收藏（dsh-chat-rail 消息收藏；client 侧合并 localStorage 计数）──
+    { id: 'fav-first', name: '初见倾心', desc: '收藏第一条消息。', icon: '⭐', category: '收藏', rarity: 'common', threshold: { counter: KEYS.chatRailFavorites, target: 1 },
+        plugin: '@max-null/dsh-chat-rail' },
+    { id: 'fav-10', name: '收藏发烧友', desc: '累计收藏 10 条消息。', icon: '📚', category: '收藏', rarity: 'rare', threshold: { counter: KEYS.chatRailFavorites, target: 10 },
+        plugin: '@max-null/dsh-chat-rail' },
+    { id: 'fav-30', name: '收藏大师', desc: '累计收藏 30 条消息。', icon: '👑', category: '收藏', rarity: 'epic', threshold: { counter: KEYS.chatRailFavorites, target: 30 },
+        plugin: '@max-null/dsh-chat-rail' },
+    { id: 'fav-100', name: '千禧藏家', desc: '累计收藏 100 条消息。', icon: '💎', category: '收藏', rarity: 'legendary', threshold: { counter: KEYS.chatRailFavorites, target: 100 },
+        plugin: '@max-null/dsh-chat-rail' },
     // ── 工具 ──
     { id: 'tool-10', name: '工具新手', desc: '累计调用 10 次工具。', icon: '🔧', category: '工具', rarity: 'common', threshold: { counter: KEYS.tools, target: 10 },
         plugin: null },
