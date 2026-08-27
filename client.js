@@ -78,14 +78,15 @@ function pluginLabel(plugin) {
   if (plugin === null) return null;
   return PLUGIN_SHORT[plugin] ?? plugin.split("/").pop() ?? plugin;
 }
-function readChatRail() {
+async function readChatRail() {
   try {
-    const raw = localStorage.getItem(CHAT_RAIL_LS_KEY);
-    if (raw === null) return 0;
-    const parsed = JSON.parse(raw);
-    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return 0;
+    const res = await fetch("/chat-rail/api/favorites", { headers: { Accept: "application/json" } });
+    if (!res.ok) return 0;
+    const data = await res.json();
+    const map = data.value;
+    if (map === null || typeof map !== "object" || Array.isArray(map)) return 0;
     let total = 0;
-    for (const value of Object.values(parsed)) {
+    for (const value of Object.values(map)) {
       if (Array.isArray(value)) total += value.filter((id) => typeof id === "string" && id !== "").length;
     }
     return total;
@@ -147,7 +148,6 @@ function registerSettingsNavIcon(label) {
   };
 }
 var GENUI_LS_KEY = "dsh.genui.achievements";
-var CHAT_RAIL_LS_KEY = "@max-null/dsh-chat-rail:favorites";
 function readGenUI() {
   try {
     const raw = localStorage.getItem(GENUI_LS_KEY);
@@ -172,7 +172,7 @@ function AchievementsView(_props) {
   const reload = (0, import_react.useCallback)(async () => {
     const genui = readGenUI();
     await api("genui-merge", genui);
-    await api("chat-rail-merge", { total: readChatRail() });
+    await api("chat-rail-merge", { total: await readChatRail() });
     const data = await api("list");
     if (data !== null) setSnapshot(data);
   }, []);

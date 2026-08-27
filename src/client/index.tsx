@@ -86,15 +86,16 @@ function pluginLabel(plugin: string | null): string | null {
   return PLUGIN_SHORT[plugin] ?? plugin.split('/').pop() ?? plugin
 }
 
-/** chat-rail 收藏总数（Record<sessionId, messageId[]> —— 只读叶级标量，不读内容）。 */
-function readChatRail(): number {
+/** chat-rail 收藏总数（host /chat-rail/api/favorites —— 只读叶级标量计数，不读内容）。 */
+async function readChatRail(): Promise<number> {
   try {
-    const raw = localStorage.getItem(CHAT_RAIL_LS_KEY)
-    if (raw === null) return 0
-    const parsed = JSON.parse(raw) as Record<string, unknown> | null
-    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return 0
+    const res = await fetch('/chat-rail/api/favorites', { headers: { Accept: 'application/json' } })
+    if (!res.ok) return 0
+    const data = await res.json() as { value?: Record<string, unknown> | null }
+    const map = data.value
+    if (map === null || typeof map !== 'object' || Array.isArray(map)) return 0
     let total = 0
-    for (const value of Object.values(parsed)) {
+    for (const value of Object.values(map)) {
       if (Array.isArray(value)) total += value.filter((id): id is string => typeof id === 'string' && id !== '').length
     }
     return total
@@ -191,7 +192,7 @@ export function AchievementsView(_props: { visible: boolean }): ReturnType<typeo
     // 融合：先上报外部插件计数（genui / chat-rail 收藏——绝对值，host setMax 防虚增），再取全景快照
     const genui = readGenUI()
     await api('genui-merge', genui)
-    await api('chat-rail-merge', { total: readChatRail() })
+    await api('chat-rail-merge', { total: await readChatRail() })
     const data = await api<Snapshot>('list')
     if (data !== null) setSnapshot(data)
   }, [])
