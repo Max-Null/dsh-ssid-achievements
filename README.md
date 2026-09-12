@@ -11,8 +11,17 @@
 - **HTTP 通道**：`/achievements/api`（list / recent / clear / genui-merge），信任围栏同 dsh-memory 的 `/memory/api`
 - **模型工具**：`list_achievements`（只读进度查询）
 
-## 接入
+## 截图
 
+装完后在设置里多出「成就」一项，展示 SSiD 全家桶使用进度：
+
+**入口：** 设置 → 成就
+
+| 设置入口与面板 |
+|---|
+| ![设置 → 成就](docs/shots/achievements-1.png) |
+
+## 接入
 ```bash
 dsh plugin add @max-null/dsh-achievements
 ```

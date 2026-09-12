@@ -21,8 +21,7 @@
     "dist",
     "client.js",
     "cordis.patch.yml",
-    "README.md"
-  ],
+    "README.md", "docs/shots"],
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
